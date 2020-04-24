@@ -1,21 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using ExternalApisWithBlazor.Models;
+using Microsoft.AspNetCore.Components;
 
 namespace ExternalApisWithBlazor.Services
 {
     public class GitHubService
     {
         private const string BaseUrl = "https://api.github.com/";
-        private static readonly List<GitHubRepositoryViewModel> _repositories = new List<GitHubRepositoryViewModel>
-            {
-                new GitHubRepositoryViewModel("My Super Cool API", DateTime.Today, 1337),
-                new GitHubRepositoryViewModel("My Other Super Cool API", DateTime.Today, 9000),
-                new GitHubRepositoryViewModel("My Not So Super Cool API", DateTime.Today, 1)
-            };
-
         private readonly HttpClient _httpClient;
 
         public GitHubService(HttpClient httpClient) =>
@@ -26,7 +21,15 @@ namespace ExternalApisWithBlazor.Services
             // Simulate some network traffic
             await Task.Delay(TimeSpan.FromMilliseconds(1000));
 
-            return _repositories;
+            var repositories = await _httpClient.GetJsonAsync<IEnumerable<GitHubRepository>>($"{BaseUrl}/users/{user}/repos");
+
+            if (repositories is null)
+            {
+                throw new HttpRequestException("Repositories not returned on response");
+            }
+
+            // Project each repository resource model from the GitHub API into our view model for the page
+            return repositories.Select(r => new GitHubRepositoryViewModel(r.Name, r.UpdatedAt.DateTime, (int)r.StargazersCount));
         }
 
         public async Task<GitHubCommitAggregateViewModel> GetCommitsAsync(string repositoryName)
