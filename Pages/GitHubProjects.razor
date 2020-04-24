@@ -1,0 +1,129 @@
+﻿@page "/projects"
+
+@using ExternalApisWithBlazor.Models
+@using ExternalApisWithBlazor.Services
+@inject GitHubService GitHubService
+
+<h1>Projects</h1>
+
+@if (loadingRepositories)
+{
+    <div class="d-flex flex-row justify-content-center">
+        <div class="spinner-border text-info" role="status">
+            <span class="sr-only">Loading repositories...</span>
+        </div>
+    </div>
+}
+else if (repositories is null || !repositories.Any())
+{
+    <h4 class="text-center">No repositories found :(</h4>
+}
+else
+{
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th scope="col">Repository</th>
+                <th scope="col">Updated At</th>
+                <th scope="col">Stars</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var repository in repositories)
+            {
+                <tr @onclick="(async () => await OnRowClick(repository.Name))">
+                    <td>@repository.Name</td>
+                    <td>@repository.UpdatedAt.ToLongDateString()</td>
+                    <td>@repository.Stars</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<hr class="py-2" />
+
+@if (repositories != null)
+{
+    @if (loadingCommits)
+    {
+        <div class="d-flex flex-row justify-content-center">
+            <div class="spinner-border text-info" role="status">
+                <span class="sr-only">Loading commits...</span>
+            </div>
+        </div>
+    }
+    else if (commitAggregate is null)
+    {
+        <h4 class="text-center">Select a row from the table above to load commits</h4>
+    }
+    else
+    {
+        @if (commitAggregate.Commits != null && commitAggregate.Commits.Any())
+        {
+            <h2>Commits for @commitAggregate.Repository</h2>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col">Sha</th>
+                        <th scope="col">User</th>
+                        <th scope="col">Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var commit in commitAggregate.Commits)
+                    {
+                        <tr>
+                            <td>
+                                <a href="@commit.HtmlUrl" target="_blank">@commit.Sha.Substring(0, 6)</a>
+                            </td>
+                            <td>@commit.CommitUser</td>
+                            <td>@commit.CommitMessage</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <h4>No commits found for repository @commitAggregate.Repository :(</h4>
+        }
+    }
+}
+
+
+@code {
+
+    private IEnumerable<GitHubRepositoryViewModel> repositories;
+
+    private GitHubCommitAggregateViewModel commitAggregate;
+
+    private bool loadingCommits;
+
+    private bool loadingRepositories;
+
+    protected override async Task OnInitializedAsync()
+    {
+        loadingRepositories = true;
+
+        // Add our stub data for now
+        Console.WriteLine("Loading repositories...");
+        repositories = await GitHubService.GetRepositoriesAsync("user123");
+
+        Console.WriteLine("Repositories loaded successfully!");
+        loadingRepositories = false;
+    }
+
+    private async Task OnRowClick(string repositoryName)
+    {
+        loadingCommits = true;
+        Console.WriteLine($"Loading commits for repository {repositoryName}...");
+
+        // Simulate some network latency
+        commitAggregate = await GitHubService.GetCommitsAsync(repositoryName);
+
+        Console.WriteLine("Commits loaded successfully!");
+        loadingCommits = false;
+    }
+
+}
